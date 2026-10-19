@@ -1821,6 +1821,9 @@
 		<member name="ProjectSettings" type="ProjectSettings" setter="" getter="">
 			The [ProjectSettings] singleton.
 		</member>
+		<member name="RDLog" type="RDLog" setter="" getter="">
+			The [RDLog] singleton.
+		</member>
 		<member name="RenderingServer" type="RenderingServer" setter="" getter="">
 			The [RenderingServer] singleton.
 		</member>

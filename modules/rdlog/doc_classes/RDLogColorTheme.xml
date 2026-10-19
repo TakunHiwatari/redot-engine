@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="RDLogColorTheme" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../doc/class.xsd">
+	<brief_description>
+		Colour palette for [RDLog] output.
+	</brief_description>
+	<description>
+		Create one of these resources, adjust its colours in the Inspector, save it as a [code].tres[/code] file and select it in [member ProjectSettings.debug/rdlog/color_theme], or assign it at runtime with [method RDLog.set_color_theme]. A new resource starts with the built-in dark colours.
+		Setting a colour's alpha to [code]0[/code] leaves that kind of output uncoloured.
+		[b]Converting a log.gd theme:[/b] the colour property names match log.gd's [code]LogColorTheme[/code]. In the [code].tres[/code] file, replace the header's [code]type="Resource" script_class="LogColorTheme"[/code] with [code]type="RDLogColorTheme"[/code], delete the [code]ext_resource[/code] line pointing at [code]log_color_theme.gd[/code] and the [code]script = ...[/code] line, and change [code]Array[Color]([...])[/code] values to [code]PackedColorArray(...)[/code].
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="create_dark" qualifiers="static">
+			<return type="RDLogColorTheme" />
+			<description>
+				Returns a new theme with the built-in dark colours, for terminals and editors with a dark background.
+			</description>
+		</method>
+		<method name="create_light" qualifiers="static">
+			<return type="RDLogColorTheme" />
+			<description>
+				Returns a new theme with the built-in light colours, for light backgrounds.
+			</description>
+		</method>
+		<method name="get_theme_color" qualifiers="const">
+			<return type="Color" />
+			<param index="0" name="index" type="int" enum="RDLogColorTheme.ThemeColor" />
+			<description>
+				Returns the colour at [param index]. Each index also has a property, such as [member color_int].
+			</description>
+		</method>
+		<method name="set_theme_color">
+			<return type="void" />
+			<param index="0" name="index" type="int" enum="RDLogColorTheme.ThemeColor" />
+			<param index="1" name="color" type="Color" />
+			<description>
+				Sets the colour at [param index]. Each index also has a property, such as [member color_int].
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="bg_colors" type="PackedColorArray" setter="set_bg_colors" getter="get_bg_colors" default="PackedColorArray()">
+			Background colours, chosen by nesting depth. Empty (the default) means no background.
+		</member>
+		<member name="color_addons_prefix" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.803922, 0.521569, 0.247059, 1)">
+			The [code]&lt;file:line&gt;:[/code] prefix for scripts under [code]addons/[/code].
+		</member>
+		<member name="color_ampersand" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.498039, 0.313726, 1)">
+			The [code]&amp;[/code] before a [StringName].
+		</member>
+		<member name="color_array" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			Kept for compatibility with log.gd themes; brackets use [member colors_rainbow_delims].
+		</member>
+		<member name="color_bool" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			[bool] values.
+		</member>
+		<member name="color_callable" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			[Callable] values.
+		</member>
+		<member name="color_carrot" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.498039, 0.313726, 1)">
+			The [code]^[/code] before a [NodePath]. (The property name matches log.gd's.)
+		</member>
+		<member name="color_class_name" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.372549, 0.619608, 0.627451, 1)">
+			Class and script names of objects, and field types when [member ProjectSettings.debug/rdlog/print_struct_types] is on.
+		</member>
+		<member name="color_comma" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.411765, 0.705882, 1)">
+			Commas between container entries and vector components.
+		</member>
+		<member name="color_dictionary" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			Kept for compatibility with log.gd themes; braces use [member colors_rainbow_delims].
+		</member>
+		<member name="color_ellipsis" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.662745, 0.662745, 0.662745, 1)">
+			The [code]...[/code] that marks truncated, skipped or cut-off output.
+		</member>
+		<member name="color_float" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.392157, 0.584314, 0.929412, 1)">
+			[float] values.
+		</member>
+		<member name="color_int" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.392157, 0.584314, 0.929412, 1)">
+			[int] values.
+		</member>
+		<member name="color_level_debug" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.662745, 0.662745, 0.662745, 1)">
+			The [code][DEBUG][/code] marker.
+		</member>
+		<member name="color_level_error" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0, 0, 1)">
+			The [code][ERR][/code] marker.
+		</member>
+		<member name="color_level_info" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.662745, 0.662745, 0.662745, 1)">
+			The [code][INFO][/code] and [code][TODO][/code] markers.
+		</member>
+		<member name="color_level_warn" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 1, 0, 1)">
+			The [code][WARN][/code] marker.
+		</member>
+		<member name="color_nil" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.498039, 0.313726, 1)">
+			[code]&lt;null&gt;[/code] values.
+		</member>
+		<member name="color_node_path" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			[NodePath] values and node paths.
+		</member>
+		<member name="color_object" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			Objects printed without a more specific rule.
+		</member>
+		<member name="color_packed_array" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			Kept for compatibility with log.gd themes; brackets use [member colors_rainbow_delims].
+		</member>
+		<member name="color_pipe" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.498039, 0.313726, 1)">
+			Kept for compatibility with log.gd themes; not currently used.
+		</member>
+		<member name="color_rects" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.392157, 0.584314, 0.929412, 1)">
+			[Rect2], [Transform2D], [Plane], [Quaternion], [AABB], [Basis], [Transform3D] and [Projection] values.
+		</member>
+		<member name="color_rid" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			[RID] values.
+		</member>
+		<member name="color_signal" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			[Signal] values.
+		</member>
+		<member name="color_src_prefix" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.498039, 1, 0.831373, 1)">
+			The [code][file:line]:[/code] prefix for project scripts.
+		</member>
+		<member name="color_string" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.662745, 0.662745, 0.662745, 1)">
+			[String] values, and the [code]:[/code] after dictionary keys.
+		</member>
+		<member name="color_string_name" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			[StringName] values.
+		</member>
+		<member name="color_struct" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.372549, 0.619608, 0.627451, 1)">
+			The type name printed before a [Struct]'s fields.
+		</member>
+		<member name="color_test_prefix" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.678431, 1, 0.184314, 1)">
+			The [code]{file:line}:[/code] prefix for scripts under [code]test/[/code].
+		</member>
+		<member name="color_timestamp" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0, 0, 0, 0)">
+			Timestamps. Fully transparent by default, which leaves them uncoloured.
+		</member>
+		<member name="color_type_color" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			[Color] values.
+		</member>
+		<member name="color_type_max" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(1, 0.752941, 0.796078, 1)">
+			Kept for compatibility with log.gd themes; not currently used.
+		</member>
+		<member name="color_vectors" type="Color" setter="set_theme_color" getter="get_theme_color" default="Color(0.392157, 0.584314, 0.929412, 1)">
+			Components of [Vector2], [Vector3], [Vector4] and their integer variants.
+		</member>
+		<member name="colors_rainbow_delims" type="PackedColorArray" setter="set_colors_rainbow_delims" getter="get_colors_rainbow_delims" default="PackedColorArray(0.862745, 0.0784314, 0.235294, 1, 0.392157, 0.584314, 0.929412, 1, 1, 0.498039, 0.313726, 1, 1, 0.752941, 0.796078, 1, 0.803922, 0.521569, 0.247059, 1)">
+			Colours for brackets, braces, parentheses and dictionary keys, chosen by nesting depth so that matching delimiters share a colour.
+		</member>
+	</members>
+	<constants>
+		<constant name="THEME_COLOR_COMMA" value="0" enum="ThemeColor">
+			Index of [member color_comma].
+		</constant>
+		<constant name="THEME_COLOR_AMPERSAND" value="1" enum="ThemeColor">
+			Index of [member color_ampersand].
+		</constant>
+		<constant name="THEME_COLOR_PIPE" value="2" enum="ThemeColor">
+			Index of [member color_pipe].
+		</constant>
+		<constant name="THEME_COLOR_CARET" value="3" enum="ThemeColor">
+			Index of [member color_carrot].
+		</constant>
+		<constant name="THEME_COLOR_SRC_PREFIX" value="4" enum="ThemeColor">
+			Index of [member color_src_prefix].
+		</constant>
+		<constant name="THEME_COLOR_ADDONS_PREFIX" value="5" enum="ThemeColor">
+			Index of [member color_addons_prefix].
+		</constant>
+		<constant name="THEME_COLOR_TEST_PREFIX" value="6" enum="ThemeColor">
+			Index of [member color_test_prefix].
+		</constant>
+		<constant name="THEME_COLOR_NIL" value="7" enum="ThemeColor">
+			Index of [member color_nil].
+		</constant>
+		<constant name="THEME_COLOR_BOOL" value="8" enum="ThemeColor">
+			Index of [member color_bool].
+		</constant>
+		<constant name="THEME_COLOR_INT" value="9" enum="ThemeColor">
+			Index of [member color_int].
+		</constant>
+		<constant name="THEME_COLOR_FLOAT" value="10" enum="ThemeColor">
+			Index of [member color_float].
+		</constant>
+		<constant name="THEME_COLOR_VECTORS" value="11" enum="ThemeColor">
+			Index of [member color_vectors].
+		</constant>
+		<constant name="THEME_COLOR_RECTS" value="12" enum="ThemeColor">
+			Index of [member color_rects].
+		</constant>
+		<constant name="THEME_COLOR_CLASS_NAME" value="13" enum="ThemeColor">
+			Index of [member color_class_name].
+		</constant>
+		<constant name="THEME_COLOR_STRING" value="14" enum="ThemeColor">
+			Index of [member color_string].
+		</constant>
+		<constant name="THEME_COLOR_STRING_NAME" value="15" enum="ThemeColor">
+			Index of [member color_string_name].
+		</constant>
+		<constant name="THEME_COLOR_NODE_PATH" value="16" enum="ThemeColor">
+			Index of [member color_node_path].
+		</constant>
+		<constant name="THEME_COLOR_TYPE_COLOR" value="17" enum="ThemeColor">
+			Index of [member color_type_color].
+		</constant>
+		<constant name="THEME_COLOR_RID" value="18" enum="ThemeColor">
+			Index of [member color_rid].
+		</constant>
+		<constant name="THEME_COLOR_OBJECT" value="19" enum="ThemeColor">
+			Index of [member color_object].
+		</constant>
+		<constant name="THEME_COLOR_CALLABLE" value="20" enum="ThemeColor">
+			Index of [member color_callable].
+		</constant>
+		<constant name="THEME_COLOR_SIGNAL" value="21" enum="ThemeColor">
+			Index of [member color_signal].
+		</constant>
+		<constant name="THEME_COLOR_ARRAY" value="22" enum="ThemeColor">
+			Index of [member color_array].
+		</constant>
+		<constant name="THEME_COLOR_DICTIONARY" value="23" enum="ThemeColor">
+			Index of [member color_dictionary].
+		</constant>
+		<constant name="THEME_COLOR_PACKED_ARRAY" value="24" enum="ThemeColor">
+			Index of [member color_packed_array].
+		</constant>
+		<constant name="THEME_COLOR_TYPE_MAX" value="25" enum="ThemeColor">
+			Index of [member color_type_max].
+		</constant>
+		<constant name="THEME_COLOR_STRUCT" value="26" enum="ThemeColor">
+			Index of [member color_struct].
+		</constant>
+		<constant name="THEME_COLOR_LEVEL_DEBUG" value="27" enum="ThemeColor">
+			Index of [member color_level_debug].
+		</constant>
+		<constant name="THEME_COLOR_LEVEL_INFO" value="28" enum="ThemeColor">
+			Index of [member color_level_info].
+		</constant>
+		<constant name="THEME_COLOR_LEVEL_WARN" value="29" enum="ThemeColor">
+			Index of [member color_level_warn].
+		</constant>
+		<constant name="THEME_COLOR_LEVEL_ERROR" value="30" enum="ThemeColor">
+			Index of [member color_level_error].
+		</constant>
+		<constant name="THEME_COLOR_TIMESTAMP" value="31" enum="ThemeColor">
+			Index of [member color_timestamp].
+		</constant>
+		<constant name="THEME_COLOR_ELLIPSIS" value="32" enum="ThemeColor">
+			Index of [member color_ellipsis].
+		</constant>
+		<constant name="THEME_COLOR_MAX" value="33" enum="ThemeColor">
+			Number of theme colours.
+		</constant>
+	</constants>
+</class>

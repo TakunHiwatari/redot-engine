@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="RDLog" inherits="Object" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../doc/class.xsd">
+	<brief_description>
+		Pretty-printing logger with colours, call-site prefixes, log levels and struct support.
+	</brief_description>
+	<description>
+		RDLog formats values for reading: it walks [Array]s, [Dictionary]s, packed arrays and [Struct]s, colours each part by type, and prefixes each line with the script file and line that called it.
+		[codeblock]
+		RDLog.pr("player", player, {hp = 10, pos = Vector2(3, 4)})
+		# [player:12]: player Player:"Hero" @ /root/Main/Hero { "hp": 10, "pos": (3.0,4.0) }
+
+		RDLog.prn({items = [1, 2, 3], owner = {name = "Ann"}})  # One entry per line.
+		RDLog.warn("low health", hp)  # Printed, and also reported as a warning at this script line.
+		[/codeblock]
+		[b]Colours:[/b] output goes through [method @GlobalScope.print_rich], so it is coloured in the editor's Output panel and in terminals. Pick a palette with [member ProjectSettings.debug/rdlog/color_theme] (an [RDLogColorTheme] resource), switch to plain named colours with [method set_colors_termsafe], or turn colours off with [method disable_colors]. Text from your values that looks like a BBCode tag (for example [code]"[b]"[/code]) is escaped so it prints literally.
+		[b]Structs:[/b] [Struct] values print their type and fields, for example [code]Point { x: 1, y: 2 }[/code]. Enable [member ProjectSettings.debug/rdlog/print_struct_types] to include field types, with [code]?[/code] on nullable fields.
+		[b]Custom output:[/b] in order of precedence, a value is printed using:
+		1. A handler registered with [method register_type_overwrite] for its script [code]class_name[/code], any of its native classes (an override for [Node2D] also applies to [Sprite2D]), its struct type name, or its [enum Variant.Type] name.
+		2. Its own [code skip-lint]to_pretty()[/code] method, whose return value is printed instead. To have the compiler check that method, declare it in a trait and [code]uses[/code] it:
+		[codeblock]
+		trait_name LogPrintable
+		func to_pretty() -&gt; Variant
+		[/codeblock]
+		3. The built-in rules.
+		Self-referencing containers and hooks that return the object itself print [code][...][/code], [code]{...}[/code] or [code]&lt;cycle Class&gt;[/code] instead of recursing forever, and nesting deeper than [member ProjectSettings.debug/rdlog/max_depth] is cut off.
+		[b]Call sites:[/b] the [code][file:line]:[/code] prefix uses [code]&lt;file:line&gt;:[/code] for scripts under [code]addons/[/code] and [code]{file:line}:[/code] under [code]test/[/code]. Script languages only track their call stack in editor and debug builds, so release exports print no prefix.
+		[b]Threads:[/b] all methods may be called from any thread. Handlers registered with [method register_type_overwrite] and [code skip-lint]to_pretty()[/code] methods run on the calling thread.
+		[b]Migrating from the log.gd addon:[/b] replace [code]Log.[/code] with [code]RDLog.[/code], [code]Log.Levels.INFO[/code] with [constant LEVEL_INFO] (likewise for the other levels and [code]Log.TimestampTypes[/code]), remove calls to [code]setup_settings()[/code], [code]merge_theme_overwrites()[/code] and [code]clear_theme_overwrites()[/code], then delete [code]res://addons/log/[/code]. The addon's [code]log_gd/config/...[/code] settings are copied to [code]debug/rdlog/...[/code] automatically. Behaviour differences: objects with a [code]data()[/code] method are no longer called automatically; strings containing BBCode are escaped instead of passed through; long arrays and dictionaries end with [code]... (N more)[/code]; Project Settings changes apply without restarting.
+		Based on log.gd by Russell Matney (MIT License).
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="blank">
+			<return type="void" />
+			<description>
+				Prints an empty line.
+			</description>
+		</method>
+		<method name="clear_runtime_overrides">
+			<return type="void" />
+			<description>
+				Forgets every setting changed from script (for example with [method set_log_level] or [method disable_colors]) and reloads all settings from [ProjectSettings].
+			</description>
+		</method>
+		<method name="clear_type_overwrites">
+			<return type="void" />
+			<description>
+				Removes every handler registered with [method register_type_overwrite] or [method register_type_overwrites].
+			</description>
+		</method>
+		<method name="debug" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method pr], prefixed with [code][DEBUG][/code]. Prints nothing unless the log level is [constant LEVEL_DEBUG].
+			</description>
+		</method>
+		<method name="disable_colors">
+			<return type="void" />
+			<description>
+				Prints without colour tags until [method enable_colors] is called.
+			</description>
+		</method>
+		<method name="disable_newlines">
+			<return type="void" />
+			<description>
+				Keeps [method pr] output on one line. Does not affect [method prn], [method prnn] and [method prnnn].
+			</description>
+		</method>
+		<method name="disable_warn_todo">
+			<return type="void" />
+			<description>
+				Makes [method todo] print at [constant LEVEL_INFO] without reporting a warning.
+			</description>
+		</method>
+		<method name="enable_colors">
+			<return type="void" />
+			<description>
+				Re-enables colours after [method disable_colors].
+			</description>
+		</method>
+		<method name="enable_newlines">
+			<return type="void" />
+			<description>
+				Lays out containers printed by [method pr] on several lines, down to [method get_newline_max_depth].
+			</description>
+		</method>
+		<method name="enable_warn_todo">
+			<return type="void" />
+			<description>
+				Makes [method todo] print at [constant LEVEL_WARN] and report a warning (the default).
+			</description>
+		</method>
+		<method name="err" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method pr], prefixed with [code][ERR][/code], and also reports the message as an error at the calling script line, like [method @GlobalScope.push_error]. Always printed, whatever the log level.
+			</description>
+		</method>
+		<method name="error" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Same as [method err].
+			</description>
+		</method>
+		<method name="get_color_theme">
+			<return type="RDLogColorTheme" />
+			<description>
+				Returns the colour theme in use: the one from [method set_color_theme] or [member ProjectSettings.debug/rdlog/color_theme], or the built-in dark theme.
+			</description>
+		</method>
+		<method name="get_dictionary_skip_keys" qualifiers="const">
+			<return type="PackedStringArray" />
+			<description>
+				Returns the dictionary keys whose values are printed as [code]...[/code]. See [member ProjectSettings.debug/rdlog/dictionary_skip_keys].
+			</description>
+		</method>
+		<method name="get_disable_colors" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if colours are turned off.
+			</description>
+		</method>
+		<method name="get_log_level" qualifiers="const">
+			<return type="int" enum="RDLog.Level" />
+			<description>
+				Returns the minimum level printed by [method debug], [method info], [method warn] and [method todo].
+			</description>
+		</method>
+		<method name="get_max_array_size" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns how many array elements are printed before the rest are summarised as [code]... (N more)[/code].
+			</description>
+		</method>
+		<method name="get_newline_max_depth" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns the nesting depth below which containers are laid out on several lines when newlines are enabled. [code]-1[/code] means no limit.
+			</description>
+		</method>
+		<method name="get_show_timestamps" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if lines start with a timestamp.
+			</description>
+		</method>
+		<method name="get_timestamp_format" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the format used by [constant TIMESTAMP_HUMAN_12HR] and [constant TIMESTAMP_HUMAN_24HR]. See [method use_timestamp_format].
+			</description>
+		</method>
+		<method name="get_timestamp_type" qualifiers="const">
+			<return type="int" enum="RDLog.TimestampType" />
+			<description>
+				Returns the kind of timestamp printed when timestamps are shown.
+			</description>
+		</method>
+		<method name="get_use_newlines" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if [method pr] lays out containers on several lines.
+			</description>
+		</method>
+		<method name="get_warn_todo" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if [method todo] reports a warning.
+			</description>
+		</method>
+		<method name="hide_timestamps">
+			<return type="void" />
+			<description>
+				Stops starting lines with a timestamp.
+			</description>
+		</method>
+		<method name="info" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method pr], prefixed with [code][INFO][/code]. Prints nothing if the log level is above [constant LEVEL_INFO].
+			</description>
+		</method>
+		<method name="log" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Same as [method pr].
+			</description>
+		</method>
+		<method name="pr" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Formats every argument and prints them on one line, separated by spaces, after the call-site prefix. Takes any number of arguments.
+				[codeblock]
+				RDLog.pr("loaded", level_name, "in", Time.get_ticks_msec() - start, "ms")
+				[/codeblock]
+			</description>
+		</method>
+		<method name="prn" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method pr], but lays out each argument's outermost container on several lines, one entry per line.
+			</description>
+		</method>
+		<method name="prnn" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method prn], but expands two levels of nested containers.
+			</description>
+		</method>
+		<method name="prnnn" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method prn], but expands three levels of nested containers.
+			</description>
+		</method>
+		<method name="rebuild_config">
+			<return type="void" />
+			<description>
+				Reloads settings from [ProjectSettings]. Settings changed from script keep their script value; use [method clear_runtime_overrides] to drop those too. Called automatically when Project Settings change.
+			</description>
+		</method>
+		<method name="register_type_overwrite">
+			<return type="void" />
+			<param index="0" name="key" type="String" />
+			<param index="1" name="handler" type="Callable" />
+			<description>
+				Prints values matching [param key] by calling [param handler] with the value and printing what it returns. [param key] is a script [code]class_name[/code], a native class name (subclasses match too), a struct type name, or a [enum Variant.Type] name such as [code]"Vector2"[/code].
+				[codeblock]
+				RDLog.register_type_overwrite("Enemy", func(e): return {name = e.name, hp = e.hp})
+				[/codeblock]
+			</description>
+		</method>
+		<method name="register_type_overwrites">
+			<return type="void" />
+			<param index="0" name="overrides" type="Dictionary" />
+			<description>
+				Registers several handlers at once, as with [method register_type_overwrite]. Keys may also be [code]typeof()[/code] values, for example [code]{TYPE_VECTOR2: func(v): return "%.1f, %.1f" % [v.x, v.y]}[/code].
+			</description>
+		</method>
+		<method name="reset_newline_max_depth">
+			<return type="void" />
+			<description>
+				Sets the newline depth limit back to [code]-1[/code] (no limit).
+			</description>
+		</method>
+		<method name="set_color_theme">
+			<return type="void" />
+			<param index="0" name="theme" type="RDLogColorTheme" />
+			<description>
+				Uses [param theme] for colours, replacing the theme from Project Settings and any termsafe colours. Pass [code]null[/code] for the built-in dark theme.
+			</description>
+		</method>
+		<method name="set_colors_pretty">
+			<return type="void" />
+			<description>
+				Switches back to the colour theme after [method set_colors_termsafe].
+			</description>
+		</method>
+		<method name="set_colors_termsafe">
+			<return type="void" />
+			<description>
+				Uses a small set of named colours ([code]red[/code], [code]green[/code], [code]pink[/code], ...) that most terminals display.
+			</description>
+		</method>
+		<method name="set_log_level">
+			<return type="void" />
+			<param index="0" name="level" type="int" enum="RDLog.Level" />
+			<description>
+				Sets the minimum level printed by [method debug], [method info], [method warn] and [method todo]. [method pr] and [method err] always print.
+			</description>
+		</method>
+		<method name="set_newline_max_depth">
+			<return type="void" />
+			<param index="0" name="depth" type="int" />
+			<description>
+				Containers nested at [param depth] or deeper stay on one line when newlines are enabled. [code]-1[/code] means no limit; [code]0[/code] keeps everything on one line.
+			</description>
+		</method>
+		<method name="show_timestamps">
+			<return type="void" />
+			<description>
+				Starts each line with a timestamp. See [method use_timestamp_type].
+			</description>
+		</method>
+		<method name="to_plain">
+			<return type="String" />
+			<param index="0" name="value" type="Variant" />
+			<param index="1" name="options" type="Dictionary" default="{}" />
+			<description>
+				Like [method to_pretty], but without colour tags.
+			</description>
+		</method>
+		<method name="to_pretty">
+			<return type="String" />
+			<param index="0" name="value" type="Variant" />
+			<param index="1" name="options" type="Dictionary" default="{}" />
+			<description>
+				Returns [param value] formatted as RDLog would print it, as BBCode suitable for [method RichTextLabel.append_text], without the call-site prefix. [param options] may contain [code]newlines[/code] (bool), [code]newline_max_depth[/code] (int) and [code skip-lint]disable_colors[/code] (bool).
+			</description>
+		</method>
+		<method name="to_printable">
+			<return type="String" />
+			<param index="0" name="messages" type="Array" />
+			<param index="1" name="options" type="Dictionary" default="{}" />
+			<description>
+				Returns the line [method pr] would print for [param messages], including the timestamp and call-site prefix. Besides the [method to_pretty] options, [param options] may contain [code]pretty[/code] (bool; [code]false[/code] uses [method @GlobalScope.str] for each message) and [code]stack[/code] (an [Array] from [method @GDScript.get_stack]; frame 1 is used as the call site).
+			</description>
+		</method>
+		<method name="todo" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method pr], prefixed with [code][TODO][/code]. By default it prints at [constant LEVEL_WARN] and also reports a warning; after [method disable_warn_todo] it prints at [constant LEVEL_INFO] without a warning.
+			</description>
+		</method>
+		<method name="use_timestamp_format">
+			<return type="void" />
+			<param index="0" name="format" type="String" />
+			<description>
+				Sets the format of human-readable timestamps. Placeholders: [code]{year}[/code], [code]{month}[/code], [code]{day}[/code], [code]{hour}[/code], [code]{minute}[/code], [code]{second}[/code], [code]{dst}[/code], and with [constant TIMESTAMP_HUMAN_12HR] also [code]{meridiem}[/code].
+			</description>
+		</method>
+		<method name="use_timestamp_type">
+			<return type="void" />
+			<param index="0" name="type" type="int" enum="RDLog.TimestampType" />
+			<description>
+				Sets the kind of timestamp printed when timestamps are shown.
+			</description>
+		</method>
+		<method name="warn" qualifiers="vararg">
+			<return type="void" />
+			<description>
+				Like [method pr], prefixed with [code][WARN][/code], and also reports the message as a warning at the calling script line, like [method @GlobalScope.push_warning]. Prints nothing if the log level is [constant LEVEL_ERROR].
+			</description>
+		</method>
+	</methods>
+	<constants>
+		<constant name="LEVEL_DEBUG" value="0" enum="Level">
+			Print everything, including [method debug].
+		</constant>
+		<constant name="LEVEL_INFO" value="1" enum="Level">
+			Print [method info] and above. The default.
+		</constant>
+		<constant name="LEVEL_WARN" value="2" enum="Level">
+			Print [method warn], [method todo] and above.
+		</constant>
+		<constant name="LEVEL_ERROR" value="3" enum="Level">
+			Print only [method err], [method error] and the unlevelled methods such as [method pr].
+		</constant>
+		<constant name="TIMESTAMP_UNIX" value="0" enum="TimestampType">
+			Seconds since the Unix epoch.
+		</constant>
+		<constant name="TIMESTAMP_TICKS_MSEC" value="1" enum="TimestampType">
+			Milliseconds since the engine started.
+		</constant>
+		<constant name="TIMESTAMP_TICKS_USEC" value="2" enum="TimestampType">
+			Microseconds since the engine started.
+		</constant>
+		<constant name="TIMESTAMP_HUMAN_12HR" value="3" enum="TimestampType">
+			Local time with a 12-hour clock, using [method get_timestamp_format]. The default.
+		</constant>
+		<constant name="TIMESTAMP_HUMAN_24HR" value="4" enum="TimestampType">
+			Local time with a 24-hour clock, using [method get_timestamp_format].
+		</constant>
+	</constants>
+</class>

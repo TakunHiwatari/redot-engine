@@ -684,6 +684,54 @@
 		<member name="debug/gdscript/warnings/unused_variable" type="int" setter="" getter="" default="1">
 			When set to [code]warn[/code] or [code]error[/code], produces a warning or an error respectively when a local variable is unused.
 		</member>
+		<member name="debug/rdlog/color_theme" type="String" setter="" getter="" default="&quot;&quot;">
+			Path to an [RDLogColorTheme] resource ([code].tres[/code] or [code].res[/code]) used to colour [RDLog] output. Empty uses the built-in dark theme. Stored as a path rather than a resource because project settings are read before resources can be loaded.
+		</member>
+		<member name="debug/rdlog/dictionary_skip_keys" type="PackedStringArray" setter="" getter="" default="PackedStringArray(&quot;layer_0/tile_data&quot;)">
+			Dictionary keys whose values [RDLog] prints as [code]...[/code] instead of in full, for large data that is rarely useful in logs.
+		</member>
+		<member name="debug/rdlog/disable_colors" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], [RDLog] prints without colours. Colours are always off on iOS and Web.
+		</member>
+		<member name="debug/rdlog/force_termsafe_colors" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], [RDLog] uses a small set of named colours that most terminals support instead of [member debug/rdlog/color_theme]. See [method RDLog.set_colors_termsafe].
+		</member>
+		<member name="debug/rdlog/level" type="int" setter="" getter="" default="1">
+			Minimum level printed by [method RDLog.debug], [method RDLog.info], [method RDLog.warn] and [method RDLog.todo]. See [enum RDLog.Level].
+		</member>
+		<member name="debug/rdlog/max_array_size" type="int" setter="" getter="" default="20">
+			Number of [Array] and packed array elements [RDLog] prints before summarising the rest as [code]... (N more)[/code].
+		</member>
+		<member name="debug/rdlog/max_depth" type="int" setter="" getter="" default="32">
+			Nesting depth at which [RDLog] stops descending into containers, structs and [code]to_pretty()[/code] results, and prints [code][...][/code] or [code]{...}[/code] instead.
+		</member>
+		<member name="debug/rdlog/max_dictionary_size" type="int" setter="" getter="" default="20">
+			Number of [Dictionary] entries and [Struct] fields [RDLog] prints before summarising the rest as [code]... (N more)[/code].
+		</member>
+		<member name="debug/rdlog/newline_max_depth" type="int" setter="" getter="" default="-1">
+			When [member debug/rdlog/use_newlines] is enabled, containers nested at this depth or deeper stay on one line. [code]-1[/code] means no limit.
+		</member>
+		<member name="debug/rdlog/print_struct_types" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], [RDLog] prints each [Struct] field's declared type, for example [code]label: String? = &lt;null&gt;[/code].
+		</member>
+		<member name="debug/rdlog/show_log_level_selector" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], the editor toolbar shows a selector for [member debug/rdlog/level].
+		</member>
+		<member name="debug/rdlog/show_timestamps" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], each [RDLog] line starts with a timestamp. See [member debug/rdlog/timestamp_type].
+		</member>
+		<member name="debug/rdlog/timestamp_format" type="String" setter="" getter="" default="&quot;{hour}:{minute}:{second}&quot;">
+			Format of human-readable [RDLog] timestamps. See [method RDLog.use_timestamp_format] for the placeholders.
+		</member>
+		<member name="debug/rdlog/timestamp_type" type="int" setter="" getter="" default="3">
+			Kind of timestamp [RDLog] prints when [member debug/rdlog/show_timestamps] is enabled. See [enum RDLog.TimestampType].
+		</member>
+		<member name="debug/rdlog/use_newlines" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], [method RDLog.pr] lays out containers on several lines, one entry per line.
+		</member>
+		<member name="debug/rdlog/warn_todo" type="bool" setter="" getter="" default="true">
+			If [code]true[/code], [method RDLog.todo] prints at the warning level and also reports a warning. If [code]false[/code], it prints at the info level without a warning.
+		</member>
 		<member name="debug/settings/crash_handler/message" type="String" setter="" getter="" default="&quot;Please include this when reporting the bug to the project developer.&quot;">
 			Message to be displayed before the backtrace when the engine crashes. By default, this message is only used in exported projects due to the editor-only override applied to this setting.
 		</member>

@@ -47,11 +47,6 @@
 #include "scene/main/node.h"
 #include "scene/resources/packed_scene.h"
 
-static const StringName &_to_pretty_method() {
-	static const StringName name = "to_pretty";
-	return name;
-}
-
 static String _tabs(int p_count) {
 	return String::chr('\t').repeat(MAX(0, p_count));
 }
@@ -355,10 +350,10 @@ void RDLogFormatter::_format_object(const Variant &p_value, const RDLogFormatCon
 	bool handled = false;
 	if (handler) {
 		handled = _call_hook(*handler, p_value, p_ctx);
-	} else if (object->has_method(_to_pretty_method())) {
+	} else if (object->has_method(SNAME("to_pretty"))) {
 		// 2. The object's own to_pretty() (also what a `LogPrintable`-style trait provides).
 		Callable::CallError ce;
-		const Variant result = object->callp(_to_pretty_method(), nullptr, 0, ce);
+		const Variant result = object->callp(SNAME("to_pretty"), nullptr, 0, ce);
 		if (ce.error == Callable::CallError::CALL_OK) {
 			hook_depth++;
 			_format(result, p_ctx, true);

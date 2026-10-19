@@ -381,7 +381,8 @@ void RDLog::reset_newline_max_depth() {
 }
 
 void RDLog::set_log_level(Level p_level) {
-	ERR_FAIL_INDEX(int(p_level), LEVEL_ERROR + 1);
+	ERR_FAIL_COND_MSG(p_level < LEVEL_DEBUG || p_level > LEVEL_ERROR,
+			vformat("RDLog: %d is not a log level. Use RDLog.LEVEL_DEBUG (0), LEVEL_INFO (1), LEVEL_WARN (2) or LEVEL_ERROR (3); the level is unchanged.", int(p_level)));
 	RDLOG_SET(FIELD_LEVEL, level, int(p_level));
 	_sync_fast_locked();
 }
@@ -399,7 +400,8 @@ void RDLog::hide_timestamps() {
 }
 
 void RDLog::use_timestamp_type(TimestampType p_type) {
-	ERR_FAIL_INDEX(int(p_type), TIMESTAMP_HUMAN_24HR + 1);
+	ERR_FAIL_COND_MSG(p_type < TIMESTAMP_UNIX || p_type > TIMESTAMP_HUMAN_24HR,
+			vformat("RDLog: %d is not a timestamp type. Use one of the RDLog.TIMESTAMP_* constants (0 to 4); the type is unchanged.", int(p_type)));
 	RDLOG_SET(FIELD_TIMESTAMP_TYPE, timestamp_type, int(p_type));
 }
 

@@ -414,6 +414,13 @@ TEST_CASE("[RDLog] Singleton runtime configuration") {
 	rdlog->rebuild_config(); // Runtime overrides survive a reload from ProjectSettings.
 	CHECK(rdlog->get_log_level() == RDLog::LEVEL_DEBUG);
 
+	ERR_PRINT_OFF;
+	rdlog->set_log_level(RDLog::Level(7));
+	rdlog->use_timestamp_type(RDLog::TimestampType(-1));
+	ERR_PRINT_ON;
+	CHECK_MESSAGE(rdlog->get_log_level() == RDLog::LEVEL_DEBUG, "An invalid level is rejected.");
+	CHECK_MESSAGE(rdlog->get_timestamp_type() == RDLog::TIMESTAMP_HUMAN_12HR, "An invalid timestamp type is rejected.");
+
 	rdlog->disable_colors();
 	CHECK(rdlog->to_pretty(Array({ 1 })) == "[ 1 ]");
 

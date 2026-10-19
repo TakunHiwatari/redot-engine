@@ -50,9 +50,10 @@ struct RDLogCallSite {
 	int line = 0;
 	bool valid = false;
 
-	/// The most recent script frame on the calling thread. Script languages only
-	/// track their call stack in builds with DEBUG_ENABLED (editor and debug
-	/// templates); in release templates this returns an invalid call site.
+	/// The most recent script frame on the calling thread. Script languages track
+	/// their call stack in editor and debug builds, and in release builds only when
+	/// debug/settings/gdscript/always_track_call_stacks is enabled; otherwise this
+	/// returns an invalid call site.
 	static RDLogCallSite capture();
 
 	/// Reads frame 1 of an Array in GDScript `get_stack()` format, as passed to

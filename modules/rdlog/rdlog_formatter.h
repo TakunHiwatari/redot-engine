@@ -82,6 +82,7 @@ class RDLogFormatter {
 	HashSet<const void *> visiting_containers;
 	HashSet<ObjectID> visiting_objects;
 	int hook_depth = 0;
+	LocalVector<String> failures;
 
 	bool _uses_newlines(const RDLogFormatContext &p_ctx, int p_count) const;
 	RDLogFormatContext _child(const RDLogFormatContext &p_ctx, bool p_newlines) const;
@@ -90,7 +91,7 @@ class RDLogFormatter {
 	void _more(const RDLogFormatContext &p_ctx, bool p_newlines, int p_shown, int p_remaining);
 
 	bool _try_override(const Variant &p_value, const String &p_key, const RDLogFormatContext &p_ctx);
-	bool _call_hook(const Callable &p_callable, const Variant &p_value, const RDLogFormatContext &p_ctx);
+	bool _call_override(const String &p_key, const Callable &p_callable, const Variant &p_value, const RDLogFormatContext &p_ctx);
 
 	void _format_vector(const Variant &p_value, int p_components, const RDLogFormatContext &p_ctx);
 	void _format_array(const Array &p_array, const RDLogFormatContext &p_ctx);
@@ -107,6 +108,10 @@ class RDLogFormatter {
 public:
 	void emit(RDLogRole p_role, const String &p_text, int p_depth = 0);
 	void format(const Variant &p_value, const RDLogFormatContext &p_ctx);
+
+	/// Messages for type overrides and to_pretty() methods that failed during
+	/// formatting. The formatter doesn't print them; RDLog reports each one once.
+	const LocalVector<String> &get_failures() const { return failures; }
 
 	RDLogFormatter(const RDLogConfig &p_config, const HashMap<String, Callable> &p_overrides, RDLogTokenStream &r_out) :
 			config(p_config), overrides(p_overrides), out(r_out) {}

@@ -45,10 +45,14 @@
 #include "../rdlog_config.h"
 #include "../rdlog_formatter.h"
 
+#include "core/config/project_settings.h"
+#include "core/os/thread.h"
 #include "core/variant/struct.h"
 #include "core/variant/struct_info.h"
 #include "scene/2d/node_2d.h"
 #include "scene/main/node.h"
+#include "scene/main/scene_tree.h"
+#include "scene/main/window.h"
 
 #include "tests/test_macros.h"
 
@@ -98,6 +102,20 @@ static Variant node_override(const Variant &p_value) {
 
 static Variant failing_to_string(const Variant &p_value) {
 	return Dictionary();
+}
+
+static Variant same_value(const Variant &p_value) {
+	return p_value;
+}
+
+static Variant new_ref_counted(const Variant &p_value) {
+	Ref<RefCounted> fresh;
+	fresh.instantiate();
+	return fresh;
+}
+
+static Variant takes_no_arguments() {
+	return "unreachable";
 }
 
 TEST_CASE("[RDLog] Config defaults") {
@@ -440,6 +458,98 @@ TEST_CASE("[RDLog] Singleton type overrides accept typeof() keys") {
 	CHECK(rdlog->to_plain(Vector2(1, 2)) == "P!");
 	rdlog->clear_type_overwrites();
 	CHECK(rdlog->to_plain(Vector2(1, 2)) == "(1.0,2.0)");
+}
+
+TEST_CASE("[RDLog] Hook cycles and the hook depth limit are reported differently") {
+	RDLogConfig config;
+	config.max_depth = 4;
+	Ref<RefCounted> object;
+	object.instantiate();
+
+	HashMap<String, Callable> returns_itself;
+	returns_itself["RefCounted"] = callable_mp_static(&same_value);
+	CHECK(format_plain(object, config, RDLogFormatContext(), returns_itself) == "<cycle RefCounted>");
+
+	// Each call returns a new object, so this is not a cycle, just too deep.
+	HashMap<String, Callable> returns_new;
+	returns_new["RefCounted"] = callable_mp_static(&new_ref_counted);
+	CHECK(format_plain(object, config, RDLogFormatContext(), returns_new) == "<RefCounted...>");
+}
+
+TEST_CASE("[RDLog] Every failing override is recorded") {
+	HashMap<String, Callable> overrides;
+	overrides["Vector2"] = callable_mp_static(&takes_no_arguments);
+	overrides["Vector3"] = callable_mp_static(&takes_no_arguments);
+	const RDLogConfig config;
+	RDLogTokenStream tokens;
+	RDLogFormatter formatter(config, overrides, tokens);
+	formatter.format(Array({ Vector2(), Vector3() }), RDLogFormatContext());
+
+	CHECK_MESSAGE(rdlog_render(tokens, nullptr) == "[ (0.0,0.0), (0.0,0.0,0.0) ]", "Failing overrides fall back to the built-in output.");
+	REQUIRE(formatter.get_failures().size() == 2);
+	CHECK(formatter.get_failures()[0].contains("\"Vector2\""));
+	CHECK(formatter.get_failures()[1].contains("\"Vector3\""));
+}
+
+struct NodeFromThread {
+	Node *node = nullptr;
+	String text;
+};
+
+TEST_CASE("[RDLog][SceneTree] Nodes in the tree are not read from other threads") {
+	Node *node = memnew(Node);
+	node->set_name("InTree");
+	SceneTree::get_singleton()->get_root()->add_child(node);
+
+	NodeFromThread data;
+	data.node = node;
+	Thread thread;
+	thread.start([](void *p_userdata) {
+		NodeFromThread *d = static_cast<NodeFromThread *>(p_userdata);
+		d->text = format_plain(d->node);
+	},
+			&data);
+	thread.wait_to_finish();
+
+	CHECK_MESSAGE(data.text == "Node#" + itos(int64_t(node->get_instance_id())), "Only the class and instance ID are printed from another thread.");
+	CHECK_MESSAGE(format_plain(node).begins_with("Node:\"InTree\" @ "), "The main thread still gets the full description.");
+	memdelete(node);
+}
+
+TEST_CASE("[RDLog] Legacy settings are copied only once") {
+	ProjectSettings *ps = ProjectSettings::get_singleton();
+	const String legacy = "log_gd/config/max_array_size";
+	const String current = "debug/rdlog/max_array_size";
+	const String migrated_marker = "debug/rdlog/legacy_settings_migrated";
+	ps->set_setting(migrated_marker, Variant());
+	ps->set_setting(legacy, 7);
+
+	const PackedStringArray copied = RDLogConfig::migrate_legacy_settings();
+	CHECK(copied.has(legacy));
+	CHECK(int(ps->get_setting(current)) == 7);
+
+	// Put back to its default afterwards: the old value must not come back.
+	ps->set_setting(current, 20);
+	CHECK(RDLogConfig::migrate_legacy_settings().is_empty());
+	CHECK(int(ps->get_setting(current)) == 20);
+
+	ps->set_setting(legacy, Variant());
+	ps->set_setting(migrated_marker, Variant());
+}
+
+TEST_CASE("[RDLog] Editing the theme returned by get_color_theme()") {
+	RDLog *rdlog = RDLog::get_singleton();
+	REQUIRE(rdlog != nullptr);
+	rdlog->clear_runtime_overrides();
+
+	const Ref<RDLogColorTheme> theme = rdlog->get_color_theme();
+	CHECK(rdlog->to_pretty(1) == "[color=6495ed]1[/color]");
+	theme->set_theme_color(RDLogColorTheme::THEME_COLOR_INT, Color(1, 1, 1));
+	CHECK_MESSAGE(rdlog->to_pretty(1) == "[color=ffffff]1[/color]", "Edits to the built-in theme apply immediately.");
+
+	rdlog->clear_runtime_overrides();
+	CHECK_MESSAGE(rdlog->to_pretty(1) == "[color=6495ed]1[/color]", "clear_runtime_overrides() restores the built-in colours.");
+	CHECK_MESSAGE(rdlog->get_color_theme() != theme, "The edited theme is replaced, not reused.");
 }
 
 } // namespace TestRDLog

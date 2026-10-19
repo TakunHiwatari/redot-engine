@@ -99,7 +99,8 @@ struct RDLogConfig {
 	static void declare_project_settings();
 
 	/// Copies log.gd's `log_gd/config/...` values into `debug/rdlog/...` where the new
-	/// key is still at its default. Returns the old keys that were copied.
+	/// key is still at its default. Runs once per project: afterwards an internal setting
+	/// records that it happened. Returns the old keys that were copied.
 	static PackedStringArray migrate_legacy_settings();
 
 	static const char *SETTING_LEVEL;

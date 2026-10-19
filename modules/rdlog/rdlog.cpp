@@ -54,16 +54,60 @@ void RDLog::_sync_fast_locked() {
 	warn_todo_fast.set_to(config.warn_todo);
 }
 
-void RDLog::_set_theme_locked(const Ref<RDLogColorTheme> &p_theme) {
+void RDLog::_watch_theme(const Ref<RDLogColorTheme> &p_theme) {
 	const Callable on_changed = callable_mp(this, &RDLog::_on_theme_changed);
-	if (color_theme.is_valid() && color_theme->is_connected(CoreStringName(changed), on_changed)) {
-		color_theme->disconnect(CoreStringName(changed), on_changed);
+	if (p_theme.is_valid() && !p_theme->is_connected(CoreStringName(changed), on_changed)) {
+		p_theme->connect(CoreStringName(changed), on_changed);
+	}
+}
+
+void RDLog::_unwatch_theme(const Ref<RDLogColorTheme> &p_theme) {
+	const Callable on_changed = callable_mp(this, &RDLog::_on_theme_changed);
+	if (p_theme.is_valid() && p_theme->is_connected(CoreStringName(changed), on_changed)) {
+		p_theme->disconnect(CoreStringName(changed), on_changed);
+	}
+}
+
+void RDLog::_set_theme_locked(const Ref<RDLogColorTheme> &p_theme) {
+	// The default theme stays watched even if it was also assigned as the active one.
+	if (color_theme != default_theme) {
+		_unwatch_theme(color_theme);
 	}
 	color_theme = p_theme;
-	if (color_theme.is_valid()) {
-		color_theme->connect(CoreStringName(changed), on_changed);
-	}
+	_watch_theme(color_theme);
 	palette_dirty = true;
+}
+
+void RDLog::_reset_default_theme_locked() {
+	// get_color_theme() hands this theme out for editing, so a reset replaces it
+	// rather than keeping a copy that script code may have changed.
+	if (default_theme != color_theme) {
+		_unwatch_theme(default_theme);
+	}
+	default_theme = RDLogColorTheme::create_dark();
+	_watch_theme(default_theme);
+	palette_dirty = true;
+}
+
+void RDLog::_report_failures(const RDLogFormatter &p_formatter) {
+	const LocalVector<String> &failures = p_formatter.get_failures();
+	if (failures.is_empty()) {
+		return;
+	}
+	LocalVector<String> new_failures;
+	{
+		MutexLock lock(mutex);
+		for (const String &failure : failures) {
+			if (!reported_failures.has(failure)) {
+				reported_failures.insert(failure);
+				new_failures.push_back(failure);
+			}
+		}
+	}
+	// Printed outside the lock: a script Logger receiving the warning may log in turn.
+	for (const String &failure : new_failures) {
+		WARN_PRINT(failure);
+	}
 }
 
 void RDLog::_on_theme_changed() {
@@ -265,6 +309,7 @@ void RDLog::_print(Kind p_kind, const Variant **p_args, int p_argcount, Callable
 		}
 		formatter.format(*p_args[i], ctx);
 	}
+	_report_failures(formatter);
 
 	const RDLogPalette *palette_ptr = snapshot.colors ? &snapshot.palette : nullptr;
 	const String line = rdlog_render(head, palette_ptr) + rdlog_render(tag, palette_ptr) + rdlog_render(body, palette_ptr);
@@ -304,6 +349,7 @@ String RDLog::to_pretty(const Variant &p_value, const Dictionary &p_options) {
 	RDLogTokenStream tokens;
 	RDLogFormatter formatter(snapshot.config, snapshot.overrides, tokens);
 	formatter.format(p_value, RDLogFormatContext::make(snapshot.config, p_options));
+	_report_failures(formatter);
 	const bool colors = snapshot.colors && !bool(p_options.get("disable_colors", false));
 	return rdlog_render(tokens, colors ? &snapshot.palette : nullptr);
 }
@@ -313,6 +359,7 @@ String RDLog::to_plain(const Variant &p_value, const Dictionary &p_options) {
 	RDLogTokenStream tokens;
 	RDLogFormatter formatter(snapshot.config, snapshot.overrides, tokens);
 	formatter.format(p_value, RDLogFormatContext::make(snapshot.config, p_options));
+	_report_failures(formatter);
 	return rdlog_render(tokens, nullptr);
 }
 
@@ -336,6 +383,7 @@ String RDLog::to_printable(const Array &p_messages, const Dictionary &p_options)
 			formatter.emit(RDLOG_ROLE_NONE, p_messages[i].stringify());
 		}
 	}
+	_report_failures(formatter);
 	return rdlog_render(tokens, colors ? &snapshot.palette : nullptr);
 }
 
@@ -496,6 +544,8 @@ void RDLog::clear_runtime_overrides() {
 		MutexLock lock(mutex);
 		config.overridden = 0;
 		theme_load_pending = true;
+		_reset_default_theme_locked();
+		reported_failures.clear();
 	}
 	rebuild_config();
 }
@@ -507,10 +557,12 @@ void RDLog::register_type_overwrite(const String &p_key, const Callable &p_handl
 	ERR_FAIL_COND_MSG(!p_handler.is_valid(), "RDLog: type override handler must be a valid Callable.");
 	MutexLock lock(mutex);
 	type_overrides[p_key] = p_handler;
+	reported_failures.clear(); // A replaced handler that still fails is reported again.
 }
 
 void RDLog::register_type_overwrites(const Dictionary &p_overrides) {
 	MutexLock lock(mutex);
+	reported_failures.clear();
 	for (const KeyValue<Variant, Variant> &kv : p_overrides) {
 		String key;
 		if (kv.key.get_type() == Variant::INT) {
@@ -529,6 +581,7 @@ void RDLog::register_type_overwrites(const Dictionary &p_overrides) {
 void RDLog::clear_type_overwrites() {
 	MutexLock lock(mutex);
 	type_overrides.clear();
+	reported_failures.clear();
 }
 
 /* Binding */
@@ -614,7 +667,7 @@ RDLog::RDLog() {
 	ERR_FAIL_COND_MSG(singleton != nullptr, "RDLog is a singleton; use the RDLog global instead of creating one.");
 	singleton = this;
 
-	default_theme = RDLogColorTheme::create_dark();
+	_reset_default_theme_locked();
 	platform_disables_colors = OS::get_singleton()->has_feature("ios") || OS::get_singleton()->has_feature("web");
 
 	config.load_from_project_settings();
@@ -633,5 +686,6 @@ RDLog::~RDLog() {
 		ps->disconnect(SNAME("settings_changed"), on_settings_changed);
 	}
 	_set_theme_locked(Ref<RDLogColorTheme>());
+	_unwatch_theme(default_theme);
 	singleton = nullptr;
 }

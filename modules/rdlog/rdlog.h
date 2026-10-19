@@ -96,6 +96,7 @@ private:
 	Ref<RDLogColorTheme> color_theme; // Null means the built-in dark theme.
 	Ref<RDLogColorTheme> default_theme;
 	RDLogPalette palette;
+	HashSet<String> reported_failures; // Failing overrides/to_pretty() already warned about.
 	bool palette_dirty = true;
 	bool theme_load_pending = true;
 	bool platform_disables_colors = false;
@@ -105,7 +106,11 @@ private:
 	SafeFlag warn_todo_fast;
 
 	void _sync_fast_locked();
+	void _watch_theme(const Ref<RDLogColorTheme> &p_theme);
+	void _unwatch_theme(const Ref<RDLogColorTheme> &p_theme);
 	void _set_theme_locked(const Ref<RDLogColorTheme> &p_theme);
+	void _reset_default_theme_locked();
+	void _report_failures(const RDLogFormatter &p_formatter);
 	void _on_theme_changed();
 	void _load_pending_theme();
 	Snapshot _snapshot();

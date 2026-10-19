@@ -22,9 +22,10 @@
 		func to_pretty() -&gt; Variant
 		[/codeblock]
 		3. The built-in rules.
-		Self-referencing containers and hooks that return the object itself print [code][...][/code], [code]{...}[/code] or [code]&lt;cycle Class&gt;[/code] instead of recursing forever, and nesting deeper than [member ProjectSettings.debug/rdlog/max_depth] is cut off.
-		[b]Call sites:[/b] the [code][file:line]:[/code] prefix uses [code]&lt;file:line&gt;:[/code] for scripts under [code]addons/[/code] and [code]{file:line}:[/code] under [code]test/[/code]. Script languages only track their call stack in editor and debug builds, so release exports print no prefix.
-		[b]Threads:[/b] all methods may be called from any thread. Handlers registered with [method register_type_overwrite] and [code skip-lint]to_pretty()[/code] methods run on the calling thread.
+		Self-referencing containers print [code][...][/code] or [code]{...}[/code], and a hook whose result contains the object itself prints [code]&lt;cycle Class&gt;[/code], instead of recursing forever. Nesting deeper than [member ProjectSettings.debug/rdlog/max_depth] is cut off the same way, and hooks that keep returning new objects stop with [code]&lt;Class...&gt;[/code].
+		If a handler or [code skip-lint]to_pretty()[/code] method can't be called, the value is printed with the built-in rules and a warning names the handler's key or the class. Each distinct failure is reported once; registering or clearing handlers, or calling [method clear_runtime_overrides], lets it be reported again.
+		[b]Call sites:[/b] the [code][file:line]:[/code] prefix uses [code]&lt;file:line&gt;:[/code] for scripts under [code]addons/[/code] and [code]{file:line}:[/code] under [code]test/[/code]. Script languages track their call stack in editor and debug builds; release exports print no prefix unless [member ProjectSettings.debug/settings/gdscript/always_track_call_stacks] is enabled.
+		[b]Threads:[/b] all methods may be called from any thread. Handlers registered with [method register_type_overwrite] and [code skip-lint]to_pretty()[/code] methods run on the calling thread. A [Node] in the scene tree can only be read from the thread that processes it, so from any other thread it is printed as its class and instance ID (for example [code]Node2D#12345[/code]), without calling its handlers.
 		[b]Migrating from the log.gd addon:[/b] replace [code]Log.[/code] with [code]RDLog.[/code], [code]Log.Levels.INFO[/code] with [constant LEVEL_INFO] (likewise for the other levels and [code]Log.TimestampTypes[/code]), remove calls to [code]setup_settings()[/code], [code]merge_theme_overwrites()[/code] and [code]clear_theme_overwrites()[/code], then delete [code]res://addons/log/[/code]. The addon's [code]log_gd/config/...[/code] settings are copied to [code]debug/rdlog/...[/code] automatically. Behaviour differences: objects with a [code]data()[/code] method are no longer called automatically; strings containing BBCode are escaped instead of passed through; long arrays and dictionaries end with [code]... (N more)[/code]; Project Settings changes apply without restarting.
 		Based on log.gd by Russell Matney (MIT License).
 	</description>
@@ -40,7 +41,7 @@
 		<method name="clear_runtime_overrides">
 			<return type="void" />
 			<description>
-				Forgets every setting changed from script (for example with [method set_log_level] or [method disable_colors]) and reloads all settings from [ProjectSettings].
+				Forgets every setting changed from script (for example with [method set_log_level] or [method disable_colors]), including edits to the built-in theme from [method get_color_theme], and reloads all settings from [ProjectSettings].
 			</description>
 		</method>
 		<method name="clear_type_overwrites">
@@ -106,7 +107,7 @@
 		<method name="get_color_theme">
 			<return type="RDLogColorTheme" />
 			<description>
-				Returns the colour theme in use: the one from [method set_color_theme] or [member ProjectSettings.debug/rdlog/color_theme], or the built-in dark theme.
+				Returns the colour theme in use: the one from [method set_color_theme] or [member ProjectSettings.debug/rdlog/color_theme], or the built-in dark theme. Changes to the returned theme apply immediately. If it is the built-in theme, [method clear_runtime_overrides] replaces it with an unmodified one.
 			</description>
 		</method>
 		<method name="get_dictionary_skip_keys" qualifiers="const">

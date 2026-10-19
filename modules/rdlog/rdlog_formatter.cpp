@@ -133,16 +133,16 @@ bool RDLogFormatter::_try_override(const Variant &p_value, const String &p_key, 
 	if (!handler) {
 		return false;
 	}
-	return _call_hook(*handler, p_value, p_ctx);
+	return _call_override(p_key, *handler, p_value, p_ctx);
 }
 
-bool RDLogFormatter::_call_hook(const Callable &p_callable, const Variant &p_value, const RDLogFormatContext &p_ctx) {
+bool RDLogFormatter::_call_override(const String &p_key, const Callable &p_callable, const Variant &p_value, const RDLogFormatContext &p_ctx) {
 	const Variant *args[1] = { &p_value };
 	Variant result;
 	Callable::CallError ce;
 	p_callable.callp(args, 1, result, ce);
 	if (ce.error != Callable::CallError::CALL_OK) {
-		WARN_PRINT_ONCE(vformat("RDLog: type override %s failed; printing the value without it.", p_callable));
+		failures.push_back(vformat(R"(RDLog: the type override for "%s" failed (%s); printing the value without it.)", p_key, Variant::get_callable_error_text(p_callable, args, 1, ce)));
 		return false;
 	}
 	hook_depth++;
@@ -325,31 +325,50 @@ void RDLogFormatter::_format_object(const Variant &p_value, const RDLogFormatCon
 	}
 
 	const ObjectID id = object->get_instance_id();
-	if (visiting_objects.has(id) || hook_depth >= config.max_depth) {
+
+	// A node in the scene tree can only be read from the thread that processes it. From
+	// any other thread, print only what is safe to read: its class and instance ID. Hooks
+	// are skipped too, since they would read the node.
+	const Node *node = Object::cast_to<Node>(object);
+	if (node && !node->is_accessible_from_caller_thread()) {
+		emit(RDLOG_ROLE_CLASS_NAME, object->get_class(), p_ctx.depth);
+		emit(RDLOG_ROLE_OBJECT, "#" + itos(int64_t(id)), p_ctx.depth);
+		return;
+	}
+
+	if (visiting_objects.has(id)) {
 		emit(RDLOG_ROLE_OBJECT, "<cycle " + object->get_class() + ">", p_ctx.depth);
+		return;
+	}
+	if (hook_depth >= config.max_depth) {
+		// Hooks kept returning new objects; same marker style as "[...]" for containers.
+		emit(RDLOG_ROLE_OBJECT, "<" + object->get_class() + "...>", p_ctx.depth);
 		return;
 	}
 
 	// 1. Registered overrides: script global classes up the script chain, then native classes.
 	const Callable *handler = nullptr;
+	String handler_key;
 	if (!overrides.is_empty()) {
 		Ref<Script> script = object->get_script();
 		while (!handler && script.is_valid()) {
 			const StringName global_name = script->get_global_name();
 			if (!global_name.is_empty()) {
 				handler = overrides.getptr(global_name);
+				handler_key = global_name;
 			}
 			script = script->get_base_script();
 		}
 		for (StringName cls = object->get_class_name(); !handler && cls != StringName(); cls = ClassDB::get_parent_class(cls)) {
 			handler = overrides.getptr(cls);
+			handler_key = cls;
 		}
 	}
 
 	visiting_objects.insert(id);
 	bool handled = false;
 	if (handler) {
-		handled = _call_hook(*handler, p_value, p_ctx);
+		handled = _call_override(handler_key, *handler, p_value, p_ctx);
 	} else if (object->has_method(SNAME("to_pretty"))) {
 		// 2. The object's own to_pretty() (also what a `LogPrintable`-style trait provides).
 		Callable::CallError ce;
@@ -360,7 +379,8 @@ void RDLogFormatter::_format_object(const Variant &p_value, const RDLogFormatCon
 			hook_depth--;
 			handled = true;
 		} else {
-			WARN_PRINT_ONCE(vformat("RDLog: %s.to_pretty() failed; printing the object without it.", object->get_class()));
+			failures.push_back(vformat("RDLog: %s.to_pretty() failed (%s); printing the object without it.", object->get_class(),
+					Variant::get_call_error_text(object, SNAME("to_pretty"), nullptr, 0, ce)));
 		}
 	}
 	visiting_objects.erase(id);

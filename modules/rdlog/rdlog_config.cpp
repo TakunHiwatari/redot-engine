@@ -57,6 +57,9 @@ static const char *SETTING_SHOW_TIMESTAMPS = "debug/rdlog/show_timestamps";
 static const char *SETTING_TIMESTAMP_TYPE = "debug/rdlog/timestamp_type";
 static const char *SETTING_TIMESTAMP_FORMAT = "debug/rdlog/timestamp_format";
 static const char *SETTING_PRINT_STRUCT_TYPES = "debug/rdlog/print_struct_types";
+// Internal: set once log_gd/config/... values have been copied, so a debug/rdlog/...
+// setting later put back to its default isn't overwritten by the old value again.
+static const char *SETTING_LEGACY_SETTINGS_MIGRATED = "debug/rdlog/legacy_settings_migrated";
 
 void RDLogConfig::declare_project_settings() {
 	const RDLogConfig defaults;
@@ -80,6 +83,7 @@ void RDLogConfig::declare_project_settings() {
 	GLOBAL_DEF(PropertyInfo(Variant::INT, SETTING_TIMESTAMP_TYPE, PROPERTY_HINT_ENUM, "Unix,Ticks Msec,Ticks Usec,Human 12hr,Human 24hr"), defaults.timestamp_type);
 	GLOBAL_DEF(SETTING_TIMESTAMP_FORMAT, defaults.timestamp_format);
 	GLOBAL_DEF(SETTING_PRINT_STRUCT_TYPES, defaults.print_struct_types);
+	GLOBAL_DEF_INTERNAL(SETTING_LEGACY_SETTINGS_MIGRATED, false);
 }
 
 PackedStringArray RDLogConfig::migrate_legacy_settings() {
@@ -106,11 +110,16 @@ PackedStringArray RDLogConfig::migrate_legacy_settings() {
 	PackedStringArray migrated;
 	ProjectSettings *ps = ProjectSettings::get_singleton();
 	ERR_FAIL_NULL_V(ps, migrated);
+	if (bool(ps->get_setting(SETTING_LEGACY_SETTINGS_MIGRATED, false))) {
+		return migrated;
+	}
 
+	bool found_legacy = false;
 	for (const Legacy &entry : legacy) {
 		if (!ps->has_setting(entry.old_key)) {
 			continue;
 		}
+		found_legacy = true;
 		const Variant old_value = ps->get_setting(entry.old_key);
 		if (String(entry.new_key) == SETTING_COLOR_THEME) {
 			// The addon's own themes are GDScript resources; they are not RDLogColorThemes.
@@ -126,6 +135,11 @@ PackedStringArray RDLogConfig::migrate_legacy_settings() {
 		migrated.push_back(entry.old_key);
 	}
 
+	if (found_legacy) {
+		// Saved to project.godot along with the copied values the next time the editor
+		// saves Project Settings. Until then, copying again is harmless: nothing differs.
+		ps->set_setting(SETTING_LEGACY_SETTINGS_MIGRATED, true);
+	}
 	if (!migrated.is_empty()) {
 		print_verbose(vformat("RDLog: copied legacy log.gd settings: %s.", String(", ").join(migrated)));
 	}

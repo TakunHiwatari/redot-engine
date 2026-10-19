@@ -43,9 +43,11 @@
 
 RDLogCallSite RDLogCallSite::capture() {
 	RDLogCallSite site;
-#ifdef DEBUG_ENABLED
-	// RDLog's own methods are native, so frame 0 of the first script language with a
-	// non-empty stack is the script line that called it.
+	// Not limited to debug builds: release builds track script call stacks too when
+	// debug/settings/gdscript/always_track_call_stacks is enabled, and otherwise
+	// return an empty stack.
+	// RDLog's own methods are native, so frame 0 of the first script language with
+	// a non-empty stack is the script line that called it.
 	const int count = ScriptServer::get_language_count();
 	for (int i = 0; i < count; i++) {
 		ScriptLanguage *language = ScriptServer::get_language(i);
@@ -62,7 +64,6 @@ RDLogCallSite RDLogCallSite::capture() {
 		site.valid = !site.file.is_empty();
 		break;
 	}
-#endif
 	return site;
 }
 
